@@ -4,6 +4,7 @@ import numpy as np
 import pyglet
 from .opengl import *
 from .utils import *
+from pathlib import Path
 
 class ObjMesh:
     """
@@ -14,23 +15,30 @@ class ObjMesh:
     cache = {}
 
     @classmethod
-    def get(self, mesh_name):
+    def get(self, mesh_name: str, **kwargs):
         """
         Load a mesh or used a cached version
         """
+        path = Path(mesh_name)
+        if path.is_absolute():
+            subdir = path.parent
+            mesh_name = path.stem
+        else:
+            subdir = "meshes"
+
 
         # Assemble the absolute path to the mesh file
-        file_path = get_file_path('meshes', mesh_name, 'obj')
+        file_path = get_file_path(subdir, mesh_name, 'obj')
 
         if file_path in self.cache:
             return self.cache[file_path]
 
-        mesh = ObjMesh(file_path)
+        mesh = ObjMesh(file_path, **kwargs)
         self.cache[file_path] = mesh
 
         return mesh
 
-    def __init__(self, file_path):
+    def __init__(self, obj_path: str, tex_path: str = None):
         """
         Load an OBJ model file
 
@@ -52,8 +60,16 @@ class ObjMesh:
         #print('Loading mesh "%s"' % file_path)
 
         # Attempt to load the materials library
-        materials = self._load_mtl(file_path)
-        mesh_file = open(file_path, 'r')
+        if tex_path is None:
+            tex_path = obj_path
+        else:
+            tex_path = Path(tex_path)
+            if not tex_path.is_absolute():
+                tex_path = Path(Path(obj_path).parent, tex_path)
+        materials = self._load_mtl(str(tex_path))
+
+
+        mesh_file = open(obj_path, 'r')
 
         verts = []
         texs = []
@@ -144,7 +160,10 @@ class ObjMesh:
 
             # Get the color for this face
             f_mtl = materials[mtl_name]
-            f_color = f_mtl['Kd'] if f_mtl else np.array((1,1,1))
+            if f_mtl and 'Kd' in f_mtl:
+                f_color = f_mtl['Kd']
+            else:
+                f_color = np.array((1, 1, 1))
 
             # For each tuple of indices
             for l_idx, indices in enumerate(face):
@@ -222,7 +241,8 @@ class ObjMesh:
 
         # Determine the default texture path for the default material
         tex_name = file_name.split('.')[0]
-        tex_path = get_file_path('meshes', tex_name, 'png')
+        tex_path = get_file_path(model_dir, tex_name, 'png')
+
         if os.path.exists(tex_path):
             default_mtl['map_Kd'] = tex_path
 

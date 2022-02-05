@@ -109,14 +109,15 @@ class MeshEnt(Entity):
         self,
         mesh_name,
         height,
-        static=True
+        static=True,
+        tex_name=None,
     ):
         super().__init__()
 
         self.static = static
 
         # Load the mesh
-        self.mesh = ObjMesh.get(mesh_name)
+        self.mesh = ObjMesh.get(mesh_name, tex_path=tex_name)
 
         # Get the mesh extents
         sx, sy, sz = self.mesh.max_coords
